@@ -25,6 +25,11 @@ defmodule UdemySipper do
     headers = ["Authorization": "Bearer #{@token}"]
     {:ok, %HTTPoison.Response{body: body}} = HTTPoison.get(lecture_url, headers)
     %{"view_html" => view_html } = Poison.Parser.parse!(body)
-    IO.inspect view_html
+    [src|_] = _sources = Floki.find(view_html,"source")
+      |> Enum.map(fn({_, [{_, src},_,{_, hd}], _}) -> {src,hd} end)
+      |> Enum.filter(fn({_, hd}) -> hd === "720" end)
+      |> Enum.map(fn({src, _}) -> src end)
+
+    IO.inspect src
   end
 end
