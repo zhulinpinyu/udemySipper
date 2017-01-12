@@ -1,19 +1,17 @@
 # UdemySipper
 
-**TODO: Add description**
+### User Guide
 
-## Installation
+Step 1.
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `udemySipper` to your list of dependencies in `mix.exs`:
+Login your [https://www.udemy.com](https://www.udemy.com) account get Authorization token. (use chrome Devtools)
+
+Step 2.
 
 ```elixir
-def deps do
-  [{:udemySipper, "~> 0.1.0"}]
-end
+mix deps.get
+
+iex -S mix
+
+iex(1)> UdemySipper.playlist
 ```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/udemySipper](https://hexdocs.pm/udemySipper).
-
