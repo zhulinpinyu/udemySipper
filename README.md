@@ -13,5 +13,5 @@ mix deps.get
 
 iex -S mix
 
-iex(1)> UdemySipper.playlist
+iex(1)> UdemySipper.go
 ```
