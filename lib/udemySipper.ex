@@ -1,10 +1,10 @@
 defmodule UdemySipper do
-  @token "YOUR Authorization Token"
+  @token ""
 
   def go do
     courses = [
-      1039062,
-      959700
+      1141696,
+      1075642
     ]
     courses
     |> Enum.each(&playlist/1)
@@ -35,10 +35,13 @@ defmodule UdemySipper do
   defp lecture_detail(%{id: id, filename: filename},course_id) do
     lecture_url = "https://www.udemy.com/api-2.0/users/me/subscribed-courses/#{course_id}/lectures/#{id}?fields%5Blecture%5D=view_html"
     %{"view_html" => view_html } = fetch_data(lecture_url)
-    [src|_] = Floki.find(view_html,"source")
-      |> Enum.map(fn({_, [{_, src},_,{_, hd}], _}) -> {src,hd} end)
-      |> Enum.filter(fn({_, hd}) -> hd === "720" end)
-      |> Enum.map(fn({src, _}) -> src end)
+    [data] = String.replace(view_html, "\\u0026", "&")
+      |> Floki.find("react-video-player")
+      |> Floki.attribute("videojs-setup-data")
+
+    %{ "sources" => sources } = Poison.Parser.parse!(data)
+    [%{"src" => src}] = sources
+      |> Enum.filter(fn(%{"label" => hd }) -> hd === "720" end)
 
     download(src,filename,course_id)
   end
