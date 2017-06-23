@@ -1,65 +1,57 @@
 defmodule UdemySipper do
-  @token "TOKEN"
+  @token "aSL5hOb3ZCt9AZNa590bFNU3JP1BpwVipsxiVWg9"
   @course_id 1075642
 
   def go do
     # courses = [ 705264 ]
     # courses
     # |> Enum.each(&playlist/1)
-    conn = %{course_id: @course_id}
-    |> mkdir_course_folder
-    |> playlist_url
+    %{id: @course_id, path: "", url: "", lectures: []}
+    |> setup
     |> lectures
-    |> fetch_lecture_detail
+    |> lectures_detail
     |> downloads_video
   end
 
-  def mkdir_course_folder(%{course_id: course_id} = conn) do
-    File.mkdir_p!("downloads/courses_#{course_id}")
-    conn
+  def setup(%{id: id} = course) do
+    path = "downloads/courses_#{id}"
+    File.mkdir_p!(path)
+    url = "https://www.udemy.com/api-2.0/courses/#{id}/cached-subscriber-curriculum-items?page_size=9999&fields%5Basset%5D=filename,asset_type"
+    %{course| path: path, url: url}
   end
 
-  def playlist_url(%{course_id: course_id} = conn) do
-    Map.put(conn, :url, "https://www.udemy.com/api-2.0/courses/#{course_id}/cached-subscriber-curriculum-items?page_size=9999&fields%5Basset%5D=filename,asset_type")
-  end
-
-  def lectures(%{url: url, course_id: course_id} = conn) do
+  def lectures(%{url: url, id: id} = course) do
     %{"results" => results} = fetch_data(url)
-    [h|t] = results
+    [h|_] = results
       |> Enum.filter(&isLecture/1)
       |> Enum.filter(&isVideo/1)
       |> Enum.with_index()
-      |> Enum.map(&thin_lecture/1)
-    Map.put(conn, :lectures, [h])
+      |> Enum.map(fn({lecture, index}) -> setup_lecture(%{lecture: lecture, course_id: id, index: index}) end)
+    %{course | lectures: [h]}
   end
 
-  def fetch_lecture_detail(%{lectures: lectures, course_id: course_id} = conn) do
-    ret = lectures
-    |> Enum.map(fn(lec) -> lecture_detail(lec, course_id) end)
-    %{conn| lectures: ret}
+  def lectures_detail(%{lectures: lectures} = course)do
+    %{course | lectures: Enum.map(lectures, &lecture_detail/1)}
   end
 
-  def downloads_video(%{lectures: lectures, course_id: course_id} = conn) do
-    lectures
-    |> Enum.each(fn(lec) -> download(lec, course_id) end)
+  def downloads_video(%{lectures: lectures, path: path}) do
+    Enum.each(lectures, fn(lecture) -> download(lecture, path) end)
   end
 
-  def isLecture(%{"_class" => class} = lecture) do
+  def isLecture(%{"_class" => class}) do
     class === "lecture"
   end
 
-  def isVideo(%{"asset" => %{"asset_type" => type}} = lecture) do
+  def isVideo(%{"asset" => %{"asset_type" => type}}) do
     type === "Video"
   end
 
-  defp thin_lecture({%{"id" => id, "title" => title}, index}) do
-    %{id: id, filename: "#{(index+1)}.#{title}.mp4"}
+  defp setup_lecture(%{lecture: %{"id" => id, "title" => title}, course_id: course_id, index: index}) do
+    %{id: id, filename: "#{(index+1)}.#{title}.mp4", url: "https://www.udemy.com/api-2.0/users/me/subscribed-courses/#{course_id}/lectures/#{id}?fields%5Blecture%5D=view_html"}
   end
 
-  defp lecture_detail(%{id: id} = lecture, course_id) do
-    lecture_url = "https://www.udemy.com/api-2.0/users/me/subscribed-courses/#{course_id}/lectures/#{id}?fields%5Blecture%5D=view_html"
-    [%{"src" => src}] = lecture_url
-      |> fetch_data
+  defp lecture_detail(%{url: url} = lecture) do
+    [%{"src" => src}] = fetch_data(url)
       |> view_html
       |> String.replace("\\u0026", "&")
       |> Floki.find("react-video-player")
@@ -70,7 +62,7 @@ defmodule UdemySipper do
     Map.put(lecture, :src, src)
   end
 
-  def view_html(%{"view_html" => view_html } = lecture) do
+  def view_html(%{"view_html" => view_html }) do
     view_html
   end
 
@@ -83,12 +75,13 @@ defmodule UdemySipper do
     headers = ["Authorization": "Bearer #{@token}"]
     {:ok, %HTTPoison.Response{body: body}} = HTTPoison.get(url, headers)
     Poison.Parser.parse!(body)
+    #case do 重构
   end
-
-  defp download(%{src: src,filename: filename}, course_id) do
+  #
+  defp download(%{src: src, filename: filename}, path) do
     IO.puts "<<------#{filename}------>>"
     IO.puts src
-    IO.puts course_id
-    #System.cmd("wget", [src,"-c","-O","downloads/courses_#{course_id}/#{filename}"])
+    IO.puts path
+    #System.cmd("wget", [src,"-c","-O","#{path}/#{filename}"])
   end
 end
