@@ -1,11 +1,8 @@
 defmodule UdemySipper do
-  @token "aSL5hOb3ZCt9AZNa590bFNU3JP1BpwVipsxiVWg9"
+  @token "TOKEN"
   @course_id 1075642
 
   def go do
-    # courses = [ 705264 ]
-    # courses
-    # |> Enum.each(&playlist/1)
     %{id: @course_id, path: "", url: "", lectures: []}
     |> setup
     |> lectures
@@ -21,8 +18,7 @@ defmodule UdemySipper do
   end
 
   def lectures(%{url: url, id: id} = course) do
-    %{"results" => results} = fetch_data(url)
-    [h|_] = results
+    [h|_] = fetch_data(url)
       |> Enum.filter(&isLecture/1)
       |> Enum.filter(&isVideo/1)
       |> Enum.with_index()
@@ -51,33 +47,34 @@ defmodule UdemySipper do
   end
 
   defp lecture_detail(%{url: url} = lecture) do
-    [%{"src" => src}] = fetch_data(url)
-      |> view_html
+    %{"src" => src} = fetch_data(url)
       |> String.replace("\\u0026", "&")
       |> Floki.find("react-video-player")
       |> Floki.attribute("videojs-setup-data")
+      |> List.first
       |> parseData
       |> Enum.filter(fn(%{"label" => hd }) -> hd === "720" end)
-
+      |> List.first
     Map.put(lecture, :src, src)
-  end
-
-  def view_html(%{"view_html" => view_html }) do
-    view_html
-  end
-
-  def parseData([data]) do
-    %{ "sources" => sources } = Poison.Parser.parse!(data)
-    sources
   end
 
   defp fetch_data(url) do
     headers = ["Authorization": "Bearer #{@token}"]
     {:ok, %HTTPoison.Response{body: body}} = HTTPoison.get(url, headers)
-    Poison.Parser.parse!(body)
-    #case do 重构
+    parseData(body)
   end
-  #
+
+  defp parseData(data) do
+    case Poison.Parser.parse!(data) do
+      %{"results" => results} ->
+        results
+      %{"view_html" => view_html } ->
+        view_html
+      %{ "sources" => sources } ->
+        sources
+    end
+  end
+
   defp download(%{src: src, filename: filename}, path) do
     IO.puts "<<------#{filename}------>>"
     IO.puts src
